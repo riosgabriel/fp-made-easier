@@ -126,6 +126,10 @@ reverse l = go l Nil where
   go Nil nl = nl
   go (x:xs) nl = go xs $ x : nl
 
+concat :: forall a. List (List a) -> List a
+concat Nil = Nil
+concat (Nil:xss) = concat xss
+concat ((x:xs) : xss) = x : concat (xs:xss)
 
 test :: Effect Unit
 test = do
