@@ -13,7 +13,7 @@ import Data.List (List(..), (:))
 import Data.Maybe (Maybe(..))
 import Effect (Effect)
 import Effect.Console (log)
-import Prelude (Unit, discard, negate, show, (+), (-), (<), (>), (>=), type (~>))
+import Prelude (Unit, discard, negate, show, (+), (-), (<), (>), (>=), type (~>), (<<<))
 
 flip :: forall a b c. (a -> b -> c) -> b -> a -> c
 flip f x y = f y x
@@ -121,7 +121,6 @@ findLastIndex pred list = go Nothing 0 list  where
   go _ n (x:xs) = go (if pred x then Just n else Nothing) (n + 1) xs
 
 reverse :: List ~> List
-reverse Nil = Nil
 reverse l = go l Nil where 
   go Nil nl = nl
   go (x:xs) nl = go xs $ x : nl
@@ -130,6 +129,38 @@ concat :: forall a. List (List a) -> List a
 concat Nil = Nil
 concat (Nil:xss) = concat xss
 concat ((x:xs) : xss) = x : concat (xs:xss)
+
+filter :: forall a. (a -> Boolean) -> List a -> List a
+filter _ Nil = Nil
+filter f (x:xs) = if f x then x : filter f xs else filter f xs
+
+filterTail :: forall a. (a -> Boolean) -> List a -> List a
+-- non-Point-free version
+-- filterTail pred l = reverse $ go Nil l where
+filterTail pred = reverse <<< go Nil where
+  go acc Nil = acc
+  go acc (x:xs) = go (if pred x then x : acc else acc) xs
+
+catMaybes :: forall a. List (Maybe a) -> List a
+catMaybes Nil = Nil
+catMaybes (x:xs) = case x of
+  Just y -> y : catMaybes xs
+  Nothing -> catMaybes xs
+-- tailRecursion version
+-- catMaybes lom = reverse $ go Nil lom where
+--   go acc Nil = acc
+--   go acc (x:xs) = case x of
+--     Just y -> go (y:acc) xs
+--     Nothing -> go acc xs
+
+range :: Int -> Int -> List Int
+-- range x y | x == y = singleton y
+-- range x y | y < x = x: range (x - 1) y
+-- range x y = x : range (x + 1) y
+range x y = go x y where
+  go x' y' | x' == y' = singleton y'
+  go x' y' = x' : range (x' + step) y'
+  step = if y > x then 1 else (-1)
 
 test :: Effect Unit
 test = do
@@ -180,4 +211,14 @@ test = do
   log $ show $ findLastIndex (_ == 10) (10:5:10:(-1):2:10:Nil) == Just 5
   log $ show $ findLastIndex (_ == 10) (11:12:Nil) == Nothing
 
-  log $ show $ reverse (10:20:30:Nil)
+  log $ show $ reverse (10:20:30:Nil) == (30:20:10:Nil)
+
+  log $ show $ filter (4 > _) (1:2:3:4:5:6:7:8:Nil) == (1:2:3:Nil)
+
+  log $ show $ filterTail (4 > _) (1:2:3:4:5:6:7:8:Nil) == (1:2:3:Nil)
+
+  log $ show $ catMaybes (Just 1:Nothing:Just 2:Nothing:Nothing:Just 5:Nil) == (1:2:5:Nil)
+
+  log $ show $ range 1 5 == (1:2:3:4:5:Nil)
+  log $ show $ range 1 (-1) == (1:0:(-1):Nil)
+  log $ show $ range 0 0 == (0:Nil)
