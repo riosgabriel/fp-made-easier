@@ -11,10 +11,10 @@ module Ch5
 import Data.Eq ((==))
 import Data.List (List(..), (:))
 import Data.Maybe (Maybe(..))
+import Data.Tuple (Tuple(..), snd)
 import Effect (Effect)
 import Effect.Console (log)
-import Prelude (Unit, discard, negate, show, (+), (-), (<), (>), (>=), type (~>), (<<<))
-
+import Prelude (type (~>), Unit, discard, max, negate, show, (+), (-), (<), (<<<), (>>>), (<=), (>), (>=))
 flip :: forall a b c. (a -> b -> c) -> b -> a -> c
 flip f x y = f y x
 -- an alternative version using lambda function
@@ -162,6 +162,38 @@ range x y = go x y where
   go x' y' = x' : range (x' + step) y'
   step = if y > x then 1 else (-1)
 
+take :: forall a. Int -> List a -> List a
+-- take n _ | n < 1 = Nil
+-- take _ Nil = Nil
+-- take n (x:xs) = x : take (n - 1) xs
+take n = reverse <<< go Nil (max n 0) where
+  go acc _ Nil = acc
+  go acc 0 _ = acc
+  go acc n' (x:xs) = go (x:acc) (n' - 1) xs
+
+drop :: forall a. Int -> List a -> List a
+drop n l | n < 0 = l
+drop _ Nil = Nil
+drop 0 l = l
+drop n (_:xs) = drop (n - 1) xs
+
+takeWhile :: forall a. (a -> Boolean) -> List a -> List a
+takeWhile _ Nil = Nil
+takeWhile pred (x:xs) = if pred x then x : takeWhile pred xs else Nil
+
+dropWhile :: forall a. (a -> Boolean) -> List a -> List a
+dropWhile _ Nil = Nil
+dropWhile pred l@(x:xs) = if pred x then dropWhile pred xs else l
+
+takeEnd :: forall a. Int -> List a -> List a
+takeEnd n = go >>> snd where
+  go Nil = Tuple 0 Nil
+  go (x:xs) = go xs # \(Tuple c nl) -> Tuple (c+1) $ if c < n then x : nl else nl
+-- simpler alternative but traversing the list 3 times
+-- takeEnd n _ | n < 1 = Nil
+-- takeEnd n l = reverse $ take n $ reverse l
+
+
 test :: Effect Unit
 test = do
   log $ show $ flip const 1 2
@@ -222,3 +254,27 @@ test = do
   log $ show $ range 1 5 == (1:2:3:4:5:Nil)
   log $ show $ range 1 (-1) == (1:0:(-1):Nil)
   log $ show $ range 0 0 == (0:Nil)
+
+  log $ show $ take 3 (1:2:3:4:5:Nil) == (1:2:3:Nil)
+  log $ show $ take 10 (1:2:3:4:Nil) == (1:2:3:4:Nil)
+  log $ show $ take 0 (1:2:3:4:Nil) == Nil
+  log $ show $ take 5 (Nil :: List Int) == Nil
+  log $ show $ take (-5) (1:2:3:4:Nil) == Nil
+
+  log $ show $ drop 99 (1:2:3:4:5:Nil) == Nil
+  log $ show $ drop 2 (Nil :: List Int) == Nil
+  log $ show $ drop 2 (1:2:3:4:5:Nil) == (3:4:5:Nil)
+  log $ show $ drop 0 (1:2:3:4:5:Nil) == (1:2:3:4:5:Nil)
+  log $ show $ drop (-1) (1:2:3:4:5:Nil) == (1:2:3:4:5:Nil)
+
+  log $ show $ takeWhile (_ <= 2) (1:2:3:Nil) == (1:2:Nil)
+
+  log $ show $ dropWhile (_ <= 2) (1:2:3:Nil) == (3:Nil)
+  log $ show $ dropWhile (_ <= 1) (3:10:2:Nil) == (3:10:2:Nil)
+
+  log $ show $ takeEnd 3 (1:2:3:4:5:6:Nil) == (4:5:6:Nil)
+  log $ show $ takeEnd 2 (1:2:3:4:5:6:Nil) == (5:6:Nil)
+  log $ show $ takeEnd 10 (1:2:3:Nil) == (1:2:3:Nil)
+  log $ show $ takeEnd 0 (1:2:3:Nil) == Nil
+  log $ show $ takeEnd 1 (1:2:3:Nil) == (3:Nil)
+  log $ show $ takeEnd (-1) (1:2:3:Nil) == Nil
