@@ -193,6 +193,25 @@ takeEnd n = go >>> snd where
 -- takeEnd n _ | n < 1 = Nil
 -- takeEnd n l = reverse $ take n $ reverse l
 
+dropEnd :: forall a. Int -> List a -> List a
+dropEnd n = go >>> snd where
+  go Nil = Tuple 0 Nil
+  go (x:xs) = go xs # \(Tuple c nl) -> Tuple (c+1) $ if c < n then nl else x : nl
+
+zip :: forall a b. List a -> List b -> List (Tuple a b)
+zip Nil _ = Nil
+zip _ Nil = Nil
+zip (x:xs) (y:ys) = Tuple x y : zip xs ys
+
+-- Given (Tuple 1 "a": Tuple 2 "b": Tuple 3 "c":Nil)
+-- Tuple Nil Nil
+-- Tuple (3:Nil) ("c":Nil)
+-- Tuple (3:Nil) ("c":Nil)
+-- Tuple (2:3:Nil) ("b":"c":Nil)
+-- Tuple (1:2:3:Nil) ("a":"b":"c":Nil)
+unzip :: forall a b. List (Tuple a b) -> Tuple (List a) (List b)
+unzip Nil = Tuple Nil Nil
+unzip (Tuple x y : ts) = unzip ts # \(Tuple xs ys) -> Tuple (x:xs) (y:ys)
 
 test :: Effect Unit
 test = do
@@ -278,3 +297,18 @@ test = do
   log $ show $ takeEnd 0 (1:2:3:Nil) == Nil
   log $ show $ takeEnd 1 (1:2:3:Nil) == (3:Nil)
   log $ show $ takeEnd (-1) (1:2:3:Nil) == Nil
+
+  log $ show $ dropEnd 3 (1:2:3:4:5:6:Nil) == (1:2:3:Nil)
+  log $ show $ dropEnd 2 (1:2:3:4:5:6:Nil) == (1:2:3:4:Nil)
+  log $ show $ dropEnd 10 (1:2:3:Nil) == Nil
+  log $ show $ dropEnd 0 (1:2:3:Nil) == (1:2:3:Nil)
+  log $ show $ dropEnd 1 (1:2:3:Nil) == (1:2:Nil)
+  log $ show $ dropEnd (-1) (1:2:3:Nil) == (1:2:3:Nil)
+
+  log $ show $ zip (1:2:3:Nil) ("a":"b":"c":Nil) == (Tuple 1 "a":Tuple 2 "b": Tuple 3 "c":Nil)
+  log $ show $ zip ("a":"b":"c":Nil) (1:2:3:Nil) == (Tuple "a" 1:Tuple "b" 2: Tuple "c" 3:Nil)
+  log $ show $ zip (Nil::List Unit) (1:2:3:Nil) == Nil
+
+  log $ show $ unzip (Tuple 1 "a": Tuple 2 "b": Tuple 3 "c":Nil)  == Tuple (1:2:3:Nil) ("a":"b":"c":Nil)
+  log $ show $ unzip (Tuple "a" 1:Tuple "b" 2: Tuple "c" 3:Nil) == Tuple ("a":"b":"c":Nil) (1:2:3:Nil)
+  log $ show $ unzip (Nil :: List (Tuple Unit Unit)) == Tuple Nil Nil
